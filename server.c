@@ -46,7 +46,7 @@ void receiveFile(char *buffer, char *path, int client_socket, int content_length
         buffer++;
         if (buffer[0] == '\r' && buffer[1] == '\n' && buffer[2] == '\r' && buffer[3] == '\n')
         {
-            buffer += 5;
+            buffer += 4;
             break;
         }
     }
@@ -66,6 +66,10 @@ void receiveFile(char *buffer, char *path, int client_socket, int content_length
         printf("receiving %zu bytes\n", bytes_read);
         fwrite(buffer, 1, bytes_read, fp);
         memset(buffer, 0, BUFFERSIZE);
+        if (bytes_read < BUFFERSIZE)
+        {
+            break;
+        }
     } while ((bytes_read = recv(client_socket, buffer, BUFFERSIZE, 0)) > 0);
     printf("File Written Successfully.\n");
     sendMessage(client_socket, OK_MESSAGE);
