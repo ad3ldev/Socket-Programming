@@ -1,7 +1,6 @@
 #ifndef common_h
 #define common_h
 
-
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -25,13 +24,13 @@
 #define MAX_LINE 4096
 #define BUFFERSIZE 65536
 #define SOCKET_ERROR (-1)
+#define TIMEOUT_DELAY_SEC 20
 
 typedef struct sockaddr SA;
 typedef struct sockaddr_in SA_IN;
 
 void err_n_die(const char *fmt, ...);
-char* bin2hex(const unsigned char *input, size_t len);
+char *bin2hex(const unsigned char *input, size_t len);
 int check(int exp, const char *msg);
-
 
 #endif /* common_h */
