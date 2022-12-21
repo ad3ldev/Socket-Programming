@@ -38,8 +38,18 @@ void sendFile(char *path, int client_socket)
     printf("closing connection\n");
 }
 
-void receiveFile(char *buffer, char *path, int client_socket)
+void receiveFile(char *buffer, char *path, int client_socket, int content_length)
 {
+    int size = strlen(buffer);
+    while (buffer)
+    {
+        buffer++;
+        if (buffer[0] == '\r' && buffer[1] == '\n' && buffer[2] == '\r' && buffer[3] == '\n')
+        {
+            buffer += 5;
+            break;
+        }
+    }
     FILE *fp = fopen(path, "wb");
     if (fp == NULL)
     {
@@ -50,8 +60,7 @@ void receiveFile(char *buffer, char *path, int client_socket)
     }
     printf("Receiving File %s...\n", path);
 
-    char *writing_buffer = strstr(buffer, "\r\n\r\n");
-    size_t bytes_read = strlen(writing_buffer);
+    size_t bytes_read = content_length;
     do
     {
         printf("receiving %zu bytes\n", bytes_read);
@@ -69,12 +78,12 @@ void handleGET(char *path, int client_socket)
 {
     sendFile(path, client_socket);
 }
-void handlePOST(char *buffer, char *path, int client_socket)
+void handlePOST(char *buffer, char *path, int client_socket, int content_length)
 {
-    receiveFile(buffer, path, client_socket);
+    receiveFile(buffer, path, client_socket, content_length);
 }
 
-void parseMessage(char *msg, char *type, char *path)
+int parseMessage(char *msg, char *type, char *path)
 {
     char *temp = malloc(strlen(msg));
     strcpy(temp, msg);
@@ -82,6 +91,21 @@ void parseMessage(char *msg, char *type, char *path)
     char *dot = ".";
     char *t = strtok(temp, " ");
     char *p = strtok(NULL, " ");
+    char *token = strtok(NULL, " ");
+    int content_length = 0;
+    if (strcmp(t, "POST") == 0)
+    {
+        while (token != NULL)
+        {
+            if (strstr(token, "Content-Length:") != NULL)
+            {
+                token = strtok(NULL, " ");
+                content_length = atoi(strtok(token, "\r\n\r\n"));
+                break;
+            }
+            token = strtok(NULL, " ");
+        }
+    }
     char *relative;
 
     relative = malloc(strlen(p) + 1);
@@ -91,6 +115,7 @@ void parseMessage(char *msg, char *type, char *path)
     strcpy(path, relative);
 
     free(relative);
+    return content_length;
 }
 
 void *handle_connection(void *p_client_socket)
@@ -124,11 +149,11 @@ void *handle_connection(void *p_client_socket)
     printf("REQUEST: %s\n", buffer);
     fflush(stdout);
 
-    parseMessage(buffer, type, path);
+    int content_length = parseMessage(buffer, type, path);
     if (strcmp(type, "POST") == 0)
     {
         realpath(path, actual_path);
-        handlePOST(buffer, actual_path, client_socket);
+        handlePOST(buffer, actual_path, client_socket, content_length);
     }
     else if (strcmp(type, "GET") == 0)
     {
