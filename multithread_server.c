@@ -39,7 +39,7 @@ void sendFile(char *path, int client_socket){
     printf("closing connection\n");
 }
 
-void receiveFile(char *path, int client_socket){
+void receiveFile(char *buffer, char *path, int client_socket){
     FILE *fp = fopen(path, "w");
     if(fp == NULL){
         printf("ERROR(open): %s\n", path);
@@ -49,19 +49,29 @@ void receiveFile(char *path, int client_socket){
     }
     printf("Receiving File %s...\n", path);
 
-    char buffer[BUFFERSIZE];
-    size_t bytes_read;
-    memset(buffer,0,BUFFERSIZE);
-    while ((bytes_read = recv(client_socket, buffer, BUFFERSIZE, 0))> 0){
+    char * writing_buffer = strstr(buffer,"\r\n\r\n");
+    size_t bytes_read = strlen(writing_buffer);
+    if(strlen(buffer) < BUFFERSIZE){
         printf("receiving %zu bytes\n", bytes_read);
-        fwrite(buffer, 1, bytes_read, fp);
-        memset(buffer,0,BUFFERSIZE);
-        if(bytes_read < BUFFERSIZE){
-            close(client_socket);
-            fclose(fp);
-            break;
-        }
+                fwrite(buffer, 1, bytes_read, fp);
+                memset(buffer,0,BUFFERSIZE);
+                if(bytes_read < BUFFERSIZE){
+                    close(client_socket);
+                    fclose(fp);
+                }
+    }else{
+        while ((bytes_read = recv(client_socket, buffer, BUFFERSIZE, 0))> 0){
+                printf("receiving %zu bytes\n", bytes_read);
+                fwrite(buffer, 1, bytes_read, fp);
+                memset(buffer,0,BUFFERSIZE);
+                if(bytes_read < BUFFERSIZE){
+                    close(client_socket);
+                    fclose(fp);
+                    break;
+                }
+            }
     }
+    
     printf("File Written Successfully.\n");
     sendMessage(client_socket, OK_MESSAGE);
     close(client_socket);
@@ -72,13 +82,16 @@ void receiveFile(char *path, int client_socket){
 void handleGET(char *path, int client_socket){
     sendFile(path, client_socket);
 }
-void handlePOST(char *path, int client_socket){
-    receiveFile(path, client_socket);
+void handlePOST(char *buffer,char *path, int client_socket){
+    receiveFile(buffer,path, client_socket);
 }
 
 void parseMessage(char *msg, char *type, char *path){
+    char * temp = malloc(strlen(msg));
+    strcpy(temp, msg);
+    
     char * dot = ".";
-    char *t = strtok(msg, " ");
+    char *t = strtok(temp, " ");
     char *p = strtok(NULL, " ");
     char* relative;
 
@@ -115,7 +128,7 @@ void * handle_connection(void * p_client_socket){
     parseMessage(buffer, type, path);
     if(strcmp(type, "POST") == 0){
         realpath(path, actual_path);
-        handlePOST(actual_path, client_socket);
+        handlePOST(buffer,actual_path, client_socket);
     }
     else if(strcmp(type, "GET") == 0){
         if(realpath(path, actual_path) == NULL){
