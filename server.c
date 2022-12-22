@@ -202,6 +202,7 @@ int main(int argc, char const *argv[])
         int *p_client = malloc(sizeof(int));
         *p_client = client_socket;
         pthread_create(&t, NULL, handle_connection, p_client);
+        pthread_join(t, NULL);
     }
 
     return 0;
